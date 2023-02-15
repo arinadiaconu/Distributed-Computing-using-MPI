@@ -1,0 +1,96 @@
+DIACONU ARINA-IOANA                                     332CB
+
+                        README - TEMA3 - APD
+
+    Implementare:
+        
+        In urma citirii forumului, am ales sa abordez solutia in care presupun
+ca legatura dintre clusterul 0 si clusterul 1 este defecta din start. Astfel, 
+dupa rezolvarea primelor 2 parti, cea de-a treia este rezolvata implicit.
+
+    PARTEA 1 - stabilirea topologiei
+
+        Topologia este retinuta sub forma unei matrici cu 4 linii, fiecare
+linie corespunzand unui cluster coordonator - 0, 1, 2 sau 3. Pe fiecare linie
+a matricei se afla rank-ul worker-ilor corespunzatori. Aceasta matrice este
+initializata cu 0.
+        Prima data coordonatorii de cluster construiesc string-ul ce 
+reprezinta numele fisierului din care urmeaza sa citeasca. Fiecare isi 
+citeste numarul de workeri alaturi de rank-ul worker-ilor pe care ii are in 
+subordine. Dupa aceea, le trimit rank-ul pentru ca acestia sa stie cine este 
+coordonatorul lor. Totodata, isi construieste fiecare coordonator propria 
+linie in matricea ce retine topologia. Worker-ii isi primesc si isi retin 
+coordonatorul.
+        Principiul prin care fiecare cluster afla toata topologia este 
+urmatorul: clusterul 0 trimite clusterului 3 (inelul este 0-3-2-1) linia sa 
+din matrice, clusterul 3 trimite clusterului 2 linia de la 0 si pe a sa, iar
+clusterul 2 trimite clusterului 1 liniile primite - 0 si 3 - si pe a sa. In 
+acest moment, clusterul 1 are toata topologia completa si trimite invers 
+linia sa, adica clusterului 2. Sensul in care se merge acum este 1-2-3-0. 
+Clusterul 2 are in acest moment toata topologia si ii trimite clusterului 3 
+linia de la 1 si pe a sa, ceea ce il determina si pe 3 sa aiba toata 
+topologia. In final clusterul 3 trimite la 0 liniile 1 2 si 3, iar in acest 
+moment toti coordonatorii au topologia completa. In final fiecare trimite 
+intreaga matrice de topologie worker-ilor sai si acestia o primesc si o 
+afiseaza.
+        Pe scurt toti afla intreaga topologie dupa ce inelul este parcurs in 
+dublu sens: 0-3-2-1 si dupa 1-2-3-0.
+
+    PARTEA 2 - realizarea calculelor
+
+        Clusterul 0 genereaza vectorul conform cerintei. Pentru a putea 
+imparti taskurile cat mai echilibrat intre workeri, prima data se ia catul 
+intreg al impartirii dimensiunii vectorului la numarul de workeri - ca numar
+de task-uri per worker, iar apoi, in cazul in care impartirea nu este exacta, 
+restul este impartit astfel: fiecare worker mai ia cate un task pana cand se 
+termina numarul corespunzator restului. Se retine intr-un vector acest numar 
+de task-uri pentru fiecare worker ('each_workers_number'), iar in alt vector
+('indices') indicii din vector de la care fiecare worker sa inceapa sa 
+calculeze. Se numara workerii fiecarui cluster si fiecaruia i se da un numar 
+de takuri proportional cu numarul de workeri (intrucat taskurile sunt deja 
+impartite echilibrat per worker).
+        Clusterul 0 trimite vectorul in aceeasi directie a inelului: 0-3-2-1 
+si pentru fiecare cluster trimite indexul de la care workerii sai trebuie sa 
+inceapa sa calculeze impreuna cu numarul total de taskuri ale unui cluster. 
+Clusterul 3 primeste datele pentru clusterul 1 si 2 si le trimite mai departe 
+la 2, iar datele despre el sunt prelucrate astfel: imparte numarul de taskuri
+la workerii sai si le trimite fiecaruia vectorul, indicele de la care sa 
+inceapa sa calculeze si cate numere sa calculeze. Toti indicii corespund 
+ultimei pozitii, deci calcularea se va face descrescator in vector. Clusterul 
+2 primeste datele despre clusterul 1 si le trimite mai departe pe inel, iar
+datele despre sine sunt prelucrate la fel ca la 3. In final, clusterul 1 isi
+primeste datele si are acelasi proces de impartire a taskurilor worker-ilor ca
+la precedentele 2 clusteruri.
+        Workerii au in acest moment toti vectorul, indicele de la care sa 
+calculeze si cate numere sa calculeze si, dupa ce realizeaza calculele, trimit
+vectorul inapoi coordonatorului. Pentru fiecare vector partial primit, 
+coordonatorul compara valorile cu cele din vectorul sau si pastreaza valorile
+cele mai mari (fiind inmultire cu 5 pe numere pozitive, mereu rezultatele vor 
+fi numere mai mari decat cele generate initial). Dupa prelucrarea acestor 
+rezultate de fiecare coordonator, pentru a ajunge vectorul final la 0, acesta 
+este trimis in sensul 1-2-3-0 pe inel: clusterul 1 trimite vectorul, 
+clusterul 2 aplica aceeasi strategie ca mai devreme, luand valorile mai mari,
+trimite vectorul la 3 care reia procesul si vectorul ajunge la 0, care il 
+prelucreaza cu valorile de la workerii sai si il afiseaza.
+
+    PARTEA 3 - defect pe canalul 0-1
+
+        Asa cum am mentionat mai sus, am gandit rezolvarea primelor 2 parti
+astfel incat sa respect legaturile din topologie, dar asigurandu-ma ca acel
+canal (0-1) nu este niciodata folosit. Clusterul 1 nu comunica direct cu 
+clusterul 0 si nici invers, cerinta de la acest punct fiind rezolvata 
+implicit.
+
+    PARTEA 4 - BONUS - partitionarea topologiei
+
+        La aceasta parte am folosit acelasi principiu ca la primele 2 parti cu
+mentiunea ca, in urma citirii informatiilor despre workeri, clusterul 1 are 
+topologia completa, o afiseaza si o trimite worker-ilor. Pentru celelalte 3 
+clustere, procesul e acelasi, in urma trimiterii datelor despre linii mai 
+intai in sensul 0-3-2 si apoi 2-3-0, toti coordonatorii au topologia completa,
+o trimit worker-ilor si toti stiu intreaga topologie.
+        La partea a doua, clusterul 1 nici nu mai ia parte la procesul de 
+realizare a calculelor, astfel ca taskurile se impart la numarul de workeri
+accesibili de la 0 exact ca mai sus. Restul procesului este identic, inelul
+restrangandu-se doar la 0-3-2.
+
